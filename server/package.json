@@ -1,4 +1,8 @@
 {
+  "name": "minimal-signage",
+  "version": "1.0.0",
+  "description": "A digital signage platform built on Webkit for the humble Raspberry Pi Zero 2W.",
+  "private": true,
   "type": "module",
   "scripts": {
     "start": "node ./server.js"
