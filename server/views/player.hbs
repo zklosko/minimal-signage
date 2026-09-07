@@ -15,6 +15,10 @@
                     {{ #if isVideo }}
                         <video src="{{ url }}" muted playsinline></video>
                     {{ /if }}
+
+                    {{ #if isURL }}
+                        <iframe src="{{ url }}"></iframe>
+                    {{ /if }}
                 </article>
             {{ /each }}
         </main>

@@ -5,6 +5,8 @@ import fastifyView from "@fastify/view"
 import Handlebars from "handlebars"
 import path from "node:path"
 import { loadPartials } from "./views/load-partials.js"
+import { playerRoutes } from "./routes/player.js"
+import { recomputeAndBroadcast } from "./lib/broadcaster.js"
 
 const __dirname = import.meta.dirname
 const fastify = Fastify({ logger: true })
@@ -18,6 +20,7 @@ fastify.register(fastifyStatic, {
 })
 
 fastify.register(routes, {prefix: '/api'})
+fastify.register(playerRoutes, {prefix: '/player'})
 
 fastify.register(fastifyView, {
     engine: {
@@ -51,9 +54,7 @@ fastify.get("/schedule", async (req, res) => {
         heading: 'Schedule'
     })
 })
-fastify.get("/player", async (req, res) => {
-    return res.viewAsync("player.hbs", { hello: "World" })
-})
+
 fastify.get("/setup", async (req, res) => {
     return res.viewAsync("setup.hbs", { hello: "World" })
 })
@@ -63,5 +64,6 @@ fastify.listen({ port: 3000}, (err, address) => {
         fastify.log.error(err)
         process.exit(1)
     }
+    recomputeAndBroadcast()
     console.log('[server] Fastify listening on port 3000')
 })
