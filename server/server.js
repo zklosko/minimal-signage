@@ -33,6 +33,24 @@ fastify.get("/", async (req, res) => {
         heading: 'Dashboard'
     })
 })
+fastify.get("/media", async (req, res) => {
+    return res.viewAsync('admin/media.hbs', {
+        title: 'Media',
+        heading: 'Media'
+    })
+})
+fastify.get("/playlists", async (req, res) => {
+    return res.viewAsync('admin/playlists.hbs', {
+        title: 'Playlists',
+        heading: 'Playlists'
+    })
+})
+fastify.get("/schedule", async (req, res) => {
+    return res.viewAsync('admin/schedule.hbs', {
+        title: 'Schedule',
+        heading: 'Schedule'
+    })
+})
 fastify.get("/player", async (req, res) => {
     return res.viewAsync("player.hbs", { hello: "World" })
 })

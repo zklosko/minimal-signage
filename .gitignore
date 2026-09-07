@@ -1,6 +1,7 @@
 # Packages
 dist
 node_modules
+server/public/scripts/
 
 # Development notes
 _*.md
