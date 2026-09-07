@@ -1,0 +1,21 @@
+{
+  "name": "admin",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --outfile=../server/public/static/admin.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "alpinejs": "^3.17.2"
+  },
+  "devDependencies": {
+    "@types/alpinejs": "^3.13.11",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
+}

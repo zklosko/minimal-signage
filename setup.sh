@@ -7,16 +7,19 @@
 #   sudo ADMIN_REPO_URL=git@github.com:you/signage-admin.git bash setup.sh
 #
 # Idempotent: safe to re-run. Installs packages, enables the KMS driver,
-# creates systemd services for Weston + Cog pointed at a URL that lives in
-# a config file, and clones (or pulls, on rerun) your admin panel repo.
+# renders systemd units + support files from files/ (see render_template),
+# and clones (or pulls, on rerun) your admin panel repo.
 #
-# Your repo's server.js should read these from process.env:
-#   CONFIG_FILE   — path to the signage config JSON (e.g. .../signage/config.json)
-#   COG_SERVICE   — systemd unit to restart on config change (cog-kiosk.service)
-#   PORT          — port to listen on
-#   ADMIN_PASSWORD — basic auth password (from /etc/signage-admin.env)
+# NOTE: this is a straight extraction of the previous single-file script.
+# Logic is unchanged, including two known open issues (graphical.target
+# may never be reached on a Lite install, and XDG_RUNTIME_DIR for
+# cog-kiosk.service isn't guaranteed to exist) — those are queued for the
+# architecture rewrite, not fixed here.
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FILES_DIR="${SCRIPT_DIR}/files"
 
 # --- Configurable bits -------------------------------------------------
 KIOSK_USER="${SUDO_USER:-pi}"
@@ -36,6 +39,21 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 echo "==> Target user: ${KIOSK_USER}"
+
+# --- Template renderer ---------------------------------------------------
+# Renders a {{TOKEN}} template file to a destination path using sed.
+# Usage: render_template <template-file> <dest-path> TOKEN=value [TOKEN=value ...]
+render_template() {
+  local src="$1" dest="$2"
+  shift 2
+  local sed_args=()
+  for pair in "$@"; do
+    local key="${pair%%=*}"
+    local val="${pair#*=}"
+    sed_args+=(-e "s#{{${key}}}#${val}#g")
+  done
+  sed "${sed_args[@]}" "$src" > "$dest"
+}
 
 # --- 1. System update ---------------------------------------------------
 echo "==> Updating system packages..."
@@ -64,72 +82,35 @@ usermod -aG video,render,input "${KIOSK_USER}"
 echo "==> Setting up ${SIGNAGE_DIR}..."
 mkdir -p "${SIGNAGE_DIR}"
 if [[ ! -f "$CONFIG_FILE" ]]; then
-  cat > "$CONFIG_FILE" <<EOF
-{
-  "url": "${DEFAULT_URL}",
-  "refreshSeconds": 0
-}
-EOF
+  render_template "${FILES_DIR}/config.default.json.tmpl" "$CONFIG_FILE" \
+    "DEFAULT_URL=${DEFAULT_URL}"
 fi
 chown -R "${KIOSK_USER}:${KIOSK_USER}" "${SIGNAGE_DIR}"
 
 # --- 6. Kiosk launch script (reads URL from config.json via jq) ----------
-echo "==> Writing /usr/local/bin/start-cog.sh..."
-cat > /usr/local/bin/start-cog.sh <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-CONFIG_FILE="$1"
-URL="$(jq -r '.url' "$CONFIG_FILE")"
-exec cog "$URL"
-EOF
-chmod +x /usr/local/bin/start-cog.sh
+echo "==> Installing /usr/local/bin/start-cog.sh..."
+install -m 755 "${FILES_DIR}/start-cog.sh" /usr/local/bin/start-cog.sh
 
 # --- 7. systemd unit: weston --------------------------------------------
-echo "==> Writing weston-kiosk.service..."
-cat > /etc/systemd/system/weston-kiosk.service <<EOF
-[Unit]
-Description=Weston compositor for kiosk display
-After=systemd-user-sessions.service
-
-[Service]
-User=${KIOSK_USER}
-Group=${KIOSK_USER}
-PAMName=login
-TTYPath=/dev/tty1
-ExecStart=/usr/bin/weston --backend=drm-backend.so
-Restart=always
-RestartSec=2
-
-[Install]
-WantedBy=graphical.target
-EOF
+echo "==> Rendering weston-kiosk.service..."
+render_template "${FILES_DIR}/systemd/weston-kiosk.service.tmpl" \
+  /etc/systemd/system/weston-kiosk.service \
+  "KIOSK_USER=${KIOSK_USER}"
 
 # --- 8. systemd unit: cog -------------------------------------------------
-echo "==> Writing cog-kiosk.service..."
-cat > /etc/systemd/system/cog-kiosk.service <<EOF
-[Unit]
-Description=Cog kiosk browser
-After=weston-kiosk.service
-Requires=weston-kiosk.service
-
-[Service]
-User=${KIOSK_USER}
-Group=${KIOSK_USER}
-Environment=XDG_RUNTIME_DIR=/run/user/$(id -u "${KIOSK_USER}")
-Environment=WAYLAND_DISPLAY=wayland-1
-ExecStart=/usr/local/bin/start-cog.sh ${CONFIG_FILE}
-Restart=always
-RestartSec=2
-
-[Install]
-WantedBy=graphical.target
-EOF
+echo "==> Rendering cog-kiosk.service..."
+KIOSK_UID="$(id -u "${KIOSK_USER}")"
+render_template "${FILES_DIR}/systemd/cog-kiosk.service.tmpl" \
+  /etc/systemd/system/cog-kiosk.service \
+  "KIOSK_USER=${KIOSK_USER}" \
+  "XDG_RUNTIME_DIR=/run/user/${KIOSK_UID}" \
+  "CONFIG_FILE=${CONFIG_FILE}"
 
 # --- 9. sudoers rule so the (future) admin panel can restart cog only ----
-echo "==> Writing narrow sudoers rule for restarting cog-kiosk.service..."
-cat > /etc/sudoers.d/signage-restart <<EOF
-${KIOSK_USER} ALL=(root) NOPASSWD: /usr/bin/systemctl restart cog-kiosk.service
-EOF
+echo "==> Rendering narrow sudoers rule for restarting cog-kiosk.service..."
+render_template "${FILES_DIR}/sudoers-signage-restart.tmpl" \
+  /etc/sudoers.d/signage-restart \
+  "KIOSK_USER=${KIOSK_USER}"
 chmod 440 /etc/sudoers.d/signage-restart
 
 # --- 10. Install Node.js (only if missing or too old) ---------------------
@@ -181,25 +162,14 @@ else
 fi
 
 # --- 13. systemd unit: signage-admin ---------------------------------------
-echo "==> Writing signage-admin.service..."
-cat > /etc/systemd/system/signage-admin.service <<EOF
-[Unit]
-Description=Signage admin panel (Express)
-After=network.target
-
-[Service]
-User=${KIOSK_USER}
-WorkingDirectory=${ADMIN_DIR}
-EnvironmentFile=${ADMIN_ENV_FILE}
-Environment=CONFIG_FILE=${CONFIG_FILE}
-Environment=COG_SERVICE=cog-kiosk.service
-Environment=PORT=${ADMIN_PORT}
-ExecStart=/usr/bin/node ${ADMIN_DIR}/server.js
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-EOF
+echo "==> Rendering signage-admin.service..."
+render_template "${FILES_DIR}/systemd/signage-admin.service.tmpl" \
+  /etc/systemd/system/signage-admin.service \
+  "KIOSK_USER=${KIOSK_USER}" \
+  "ADMIN_DIR=${ADMIN_DIR}" \
+  "ADMIN_ENV_FILE=${ADMIN_ENV_FILE}" \
+  "CONFIG_FILE=${CONFIG_FILE}" \
+  "ADMIN_PORT=${ADMIN_PORT}"
 
 # --- 14. Enable services ---------------------------------------------------
 echo "==> Enabling services..."

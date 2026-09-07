@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Minimal Signage Player</title>
+        <script src="/scripts/player.js"></script>
+    </head>
+    <body>
+        <main x-data="player()" data-playlist="{{ playlistJson }}">
+            {{ #each playlist.items }}
+                <article class="slide" data-duration="{{ duration }}">
+                    {{ #if isImage }}
+                        <img src="{{url}}">
+                    {{ /if }}
+
+                    {{ #if isVideo }}
+                        <video src="{{ url }}" muted playsinline></video>
+                    {{ /if }}
+                </article>
+            {{ /each }}
+        </main>
+    </body>
+</html>
