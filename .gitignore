@@ -4,3 +4,5 @@ node_modules
 
 # Development notes
 _*.md
+
+.env

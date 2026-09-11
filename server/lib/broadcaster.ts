@@ -1,11 +1,24 @@
-import { getCurrentAndNextItem } from "./get-schedule.js";
+import { getCurrentAndNextItem } from "./get-schedule.js";3
 
-const clients = new Set()
+interface ScheduleItem {
+    kind: string,
+    id: string,
+    message: string
+}
+
+interface LastEvent {
+    sequence: number;
+    serverTime: number;
+    current: ScheduleItem | undefined;
+    next: ScheduleItem | undefined;
+}
+
+const clients = new Set<any>()
 let sequence = 0
-let pendingTimer = null
-let lastEvent = null
+let pendingTimer: NodeJS.Timeout | null = null
+let lastEvent: LastEvent | null = null
 
-export function registerPlayerClient(reply) {
+export function registerPlayerClient(reply: any) {
     clients.add(reply)
     reply.raw.on("close", () => clients.delete(reply))
     reply.raw.on("error", () => clients.delete(reply))

@@ -2,7 +2,7 @@ import Handlebars from "handlebars";
 import { readdir, readFile } from "node:fs/promises"
 import path from "node:path"
 
-export async function loadPartials(directory) {
+export async function loadPartials(directory: string) {
     const files = await readdir(directory)
 
     for (const file of files) {
