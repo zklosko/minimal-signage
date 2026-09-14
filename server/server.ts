@@ -7,7 +7,7 @@ import path from "node:path"
 import { loadPartials } from "./views/load-partials.js"
 import { playerRoutes } from "./routes/player.js"
 import { adminRoutes } from "./routes/admin.js"
-import { recomputeAndBroadcast } from "./lib/broadcaster.js"
+import { recomputeAndBroadcast } from "./signage/broadcaster.js"
 
 const __dirname = import.meta.dirname
 const fastify = Fastify({ logger: true })
@@ -24,8 +24,7 @@ fastify.register(fastifyView, {
     engine: {
         handlebars: Handlebars
     },
-    root: path.join(__dirname, 'views'),
-    layout: 'layouts/base.hbs'
+    root: path.join(__dirname, 'views')
 })
 
 fastify.register(apiRoutes, {prefix: '/api'})
