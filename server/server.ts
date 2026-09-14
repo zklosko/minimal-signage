@@ -24,7 +24,8 @@ fastify.register(fastifyView, {
     engine: {
         handlebars: Handlebars
     },
-    root: path.join(__dirname, 'views')
+    root: path.join(__dirname, 'views'),
+    layout: "/layouts/base"
 })
 
 fastify.register(apiRoutes, {prefix: '/api'})

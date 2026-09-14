@@ -8,5 +8,12 @@
     </button>
 </div>
 <div>
-    <iframe src="https://micassign.com/screen/zX67e8vFL2JyvJbhxdov8KBj" width="900" height="600"></iframe>
+    <h2>Currently playing</h2>
+    <ul>
+        <li>{{ playlist.current.src }} &dash; {{ playlist.current.type }}</li>
+    </ul>
+    <h2>Next:</h2>
+    <ul>
+        <li>{{ playlist.next.src }} &dash; {{ playlist.next.type }}</li>
+    </ul>
 </div>
