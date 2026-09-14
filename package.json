@@ -9,7 +9,7 @@
     "dev": "tsx watch server.ts",
     "schema-update": "npx drizzle-kit push",
     "typecheck": "tsc --noEmit",
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json && node scripts/copy-assets.mjs"
   },
   "dependencies": {
     "@fastify/static": "^10.1.3",
